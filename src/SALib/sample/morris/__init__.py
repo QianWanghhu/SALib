@@ -30,6 +30,7 @@ from __future__ import division
 import numpy as np
 
 import numpy.random as rd
+import warnings
 
 from . gurobi import GlobalOptimisation
 from . local import LocalOptimisation
@@ -51,7 +52,7 @@ __all__ = ['sample']
 
 
 def sample(problem, N, num_levels=4, optimal_trajectories=None,
-           local_optimization=True):
+           local_optimization=True, seed=None):
     """Generate model inputs using the Method of Morris
 
     Returns a NumPy matrix containing the model inputs required for Method of
@@ -70,7 +71,7 @@ def sample(problem, N, num_levels=4, optimal_trajectories=None,
     N : int
         The number of trajectories to generate
     num_levels : int, default=4
-        The number of grid levels
+        The number of grid levels (should be even)
     optimal_trajectories : int
         The number of optimal trajectories to sample (between 2 and N)
     local_optimization : bool, default=True
@@ -86,6 +87,11 @@ def sample(problem, N, num_levels=4, optimal_trajectories=None,
         of Morris. The resulting matrix has :math:`(G/D+1)*N/T` rows and
         :math:`D` columns, where :math:`D` is the number of parameters.
     """
+    if seed:
+        np.random.seed(seed)
+
+    if not num_levels % 2 == 0:
+        warnings.warn("num_levels should be an even number, sample may be biased")
     if problem.get('groups'):
         sample = _sample_groups(problem, N, num_levels)
     else:
@@ -260,12 +266,11 @@ def generate_x_star(num_params, num_levels):
     -------
     numpy.ndarray
         The initial starting positions of the trajectory
-
     """
     x_star = np.zeros((1, num_params))
     delta = compute_delta(num_levels)
     bound = 1 - delta
-    grid = np.linspace(0, bound, 2)
+    grid = np.linspace(0, bound, int(num_levels / 2))
 
     x_star[0, :] = rd.choice(grid, num_params)
 
