@@ -3,11 +3,12 @@ from __future__ import division
 import numpy as np
 
 from . import common_args
-from . import sobol_sequence
+from . import sobol_sequence, latin
 from ..util import scale_samples, nonuniform_scale_samples, read_param_file, compute_groups_matrix
 
 
-def sample(problem, N, calc_second_order=True, seed=None):
+def sample(problem, N, calc_second_order=True, skip_values=1000, deleted=True,
+            product_dist=None, problem_adjust=None, seed=None):
     """Generates model inputs using Saltelli's extension of the Sobol sequence.
 
     Returns a NumPy matrix containing the model inputs using Saltelli's sampling
@@ -26,6 +27,17 @@ def sample(problem, N, calc_second_order=True, seed=None):
         The number of samples to generate
     calc_second_order : bool
         Calculate second-order sensitivities (default True)
+    skip_values : int
+        The number of samples to skip (default 1000)
+    deleted : bool
+        whether to delete columns which are used to calculate the product of other parameters
+        (default True), if False, set values in those columns as 1
+    product_dist : np.ndarray
+        Array for identifying parameters which are going to be compressed.
+        Each row reprenst a group of parameters to compress and the first column is the targeted product column
+        If none, treated as original Saltelli sampling,  problem_adjust must not be given.
+    problem_adjust : dict
+        dictionary for the new problem       
     """
     if seed:
         np.random.seed(seed)
@@ -39,11 +51,49 @@ def sample(problem, N, calc_second_order=True, seed=None):
         Dg = len(set(groups))
         G, group_names = compute_groups_matrix(groups)
 
-    # How many values of the Sobol sequence to skip
-    skip_values = 1000
+    # How many values of the Sobol sequence to skip  
+    skip_values = skip_values
 
     # Create base sequence - could be any type of sampling
     base_sequence = sobol_sequence.sample(N + skip_values, 2 * D)
+    # Create base sequence - using LHS
+    # base_sequence = latin.sample(problem, N+skip_values, scale=False, seed=seed)
+    # re-scale sampline
+    base_sequence = np.vstack([base_sequence[:, 0:D], base_sequence[:, D:]])
+
+    if not problem.get('dists'):
+        # scaling values out of 0-1 range with uniform distributions
+        scale_samples(base_sequence, problem['bounds'])
+    else:
+        # scaling values to other distributions based on inverse CDFs
+        base_sequence = nonuniform_scale_samples(
+            base_sequence, problem['bounds'], problem['dists'])
+    base_sequence = np.hstack([base_sequence[0: (N + skip_values), :], 
+                            base_sequence[(N + skip_values):, :]])
+
+    if isinstance(product_dist, np.ndarray):
+        column_delete = np.array([])
+        for index_list in product_dist:
+            second_part = np.array([jj+D for jj in index_list])
+            base_sequence[:, index_list[0]] = np.prod(base_sequence[:, index_list], axis=1)
+            base_sequence[:, second_part[0]] = np.prod(base_sequence[:, second_part], axis=1)
+            column_delete = np.append(column_delete, index_list[1:])
+            column_delete = np.append(column_delete, second_part[1:])
+        if not deleted:
+            base_sequence[:, column_delete.astype(int)] = [1]
+        else:
+            base_sequence = np.delete(base_sequence, column_delete, axis=1)
+    # re-define problem using the new problem (problem_adjust)
+            problem = problem_adjust
+            D = problem['num_vars']
+            groups = problem.get('groups')
+
+        if not groups:
+            Dg = problem['num_vars']
+        else:
+            Dg = len(set(groups))
+            G, group_names = compute_groups_matrix(groups)    
+    # End re-define
 
     if calc_second_order:
         saltelli_sequence = np.zeros([(2 * Dg + 2) * N, D])
@@ -86,15 +136,16 @@ def sample(problem, N, calc_second_order=True, seed=None):
             saltelli_sequence[index, j] = base_sequence[i, j + D]
 
         index += 1
-    if not problem.get('dists'):
-        # scaling values out of 0-1 range with uniform distributions
-        scale_samples(saltelli_sequence, problem['bounds'])
-        return saltelli_sequence
-    else:
-        # scaling values to other distributions based on inverse CDFs
-        scaled_saltelli = nonuniform_scale_samples(
-            saltelli_sequence, problem['bounds'], problem['dists'])
-        return scaled_saltelli
+    # if not problem.get('dists'):
+    #     # scaling values out of 0-1 range with uniform distributions
+    #     scale_samples(saltelli_sequence, problem['bounds'])
+    #     return saltelli_sequence
+    # else:
+    #     # scaling values to other distributions based on inverse CDFs
+    #     scaled_saltelli = nonuniform_scale_samples(
+    #         saltelli_sequence, problem['bounds'], problem['dists'])
+    scaled_saltelli = saltelli_sequence
+    return scaled_saltelli
 
 
 def cli_parse(parser):
