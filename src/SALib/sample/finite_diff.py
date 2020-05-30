@@ -7,7 +7,7 @@ from . import sobol_sequence
 from ..util import scale_samples, read_param_file
 
 
-def sample(problem, N, delta=0.01, seed=None):
+def sample(problem, N, delta=0.01, skip_values=1000, seed=None):
     """Generate matrix of samples for derivative-based global sensitivity measure (dgsm).
     Start from a QMC (sobol) sequence and finite difference with delta % steps
 
@@ -22,6 +22,9 @@ def sample(problem, N, delta=0.01, seed=None):
     delta : float
         Finite difference step size (percent)
     
+    skip_values ： int
+        The number of values of the Sobol sequence to skip (default 1000)
+    
     seed : int or None
         random seed value
 
@@ -34,9 +37,7 @@ def sample(problem, N, delta=0.01, seed=None):
 
     D = problem['num_vars']
     bounds = problem['bounds']
-
-    # How many values of the Sobol sequence to skip
-    skip_values = 1000
+    
 
     # Create base sequence - could be any type of sampling
     base_sequence = sobol_sequence.sample(N + skip_values, D)
