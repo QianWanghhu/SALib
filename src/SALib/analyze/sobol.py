@@ -98,12 +98,16 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
 
     if not parallel:
         S = create_Si_dict(D, calc_second_order)
+        first_order_resample = np.zeros((D, num_resamples))
+        total_order_resample = np.zeros((D, num_resamples))
 
         for j in range(D):
             S['S1'][j] = first_order(A, AB[:, j], B)
-            S['S1_conf'][j] = Z * first_order(A[r], AB[r, j], B[r]).std(ddof=1)
+            first_order_resample[j, :] = first_order(A[r], AB[r, j], B[r])
+            S['S1_conf'][j] = Z * first_order_resample[j, :].std(ddof=1)
             S['ST'][j] = total_order(A, AB[:, j], B)
-            S['ST_conf'][j] = Z * total_order(A[r], AB[r, j], B[r]).std(ddof=1)
+            total_order_resample[j, :] = total_order(A[r], AB[r, j], B[r])
+            S['ST_conf'][j] = Z * total_order_resample[j, :].std(ddof=1)
 
         # Second order (+conf.)
         if calc_second_order:
@@ -133,7 +137,7 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
     # Add problem context and override conversion method for special case
     S.problem = problem
     S.to_df = MethodType(to_df, S)
-    return S
+    return S, first_order_resample, total_order_resample
 
 
 def first_order(A, AB, B):
