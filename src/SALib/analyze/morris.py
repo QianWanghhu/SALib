@@ -108,6 +108,9 @@ def analyze(problem, X, Y,
     Si['mu_star'] = np.average(np.abs(ee), 1)
     Si['sigma'] = np.std(ee, axis=1, ddof=1)
     Si['names'] = problem['names']
+    #Added call of function compute_mu_star_bootstrap_ranks
+    Si['mu_star_rank_conf']= compute_mu_star_bootstrap_ranks(ee.T, 
+        num_trajectories, num_resamples, conf_level)
 
     for j in range(num_vars):
         Si['mu_star_conf'][j] = compute_mu_star_confidence(
@@ -281,6 +284,32 @@ def compute_mu_star_confidence(ee, num_trajectories, num_resamples,
     mu_star_resampled = np.average(np.abs(ee_resampled), axis=1)
 
     return norm.ppf(0.5 + conf_level / 2) * mu_star_resampled.std(ddof=1)
+
+def compute_mu_star_bootstrap_ranks(ee_matrix, num_trajectories, num_resamples, conf_level):
+    """Calculate confidence interval for ranking of mu_star.
+    """
+	# ee_matric = ee.T
+    num_parameters = ee_matrix.shape[1]
+    resample_index = np.random.randint(
+        len(ee_matrix), size=(num_resamples, num_trajectories))
+    mu_star_resampled = np.zeros([num_resamples,num_parameters])
+    rankings = np.zeros([num_resamples,num_parameters])
+    ranking_ci = np.zeros([2,num_parameters])
+	
+	# Calculate mu_star for each parameter, for each resample
+    for parameter in range(num_parameters):
+
+	    ee_resampled = ee_matrix[resample_index,parameter]
+		# Compute average of the absolute values over each of the resamples
+	    mu_star_resampled[:,parameter] = np.average(np.abs(ee_resampled), axis=1)
+
+	# Get ranking for each resample
+    for resample in range(num_resamples):
+	    rankings[resample,:] = np.argsort(mu_star_resampled[resample,:]).argsort()
+        
+    ranking_ci = np.quantile(rankings,[(1-conf_level)/2, 0.5 + conf_level/2], axis=0)
+
+    return ranking_ci
 
 
 def cli_parse(parser):
