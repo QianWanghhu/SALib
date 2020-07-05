@@ -108,7 +108,9 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
             S['ST'][j] = total_order(A, AB[:, j], B)
             total_order_resample[j, :] = total_order(A[r], AB[r, j], B[r])
             S['ST_conf'][j] = Z * total_order_resample[j, :].std(ddof=1)
-
+        
+        S['main_rank_ci'] = compute_main_bootstrap_ranks(first_order_resample, conf_level)
+        S['total_rank_ci'] = compute_main_bootstrap_ranks(total_order_resample, conf_level)
         # Second order (+conf.)
         if calc_second_order:
             for j in range(D):
@@ -174,6 +176,18 @@ def create_Si_dict(D, calc_second_order):
 
     return S
 
+def compute_main_bootstrap_ranks(sobol_order_resample, conf_level):
+    """Calculate confidence interval for ranking of mu_star.
+    """
+    D, num_resamples = sobol_order_resample.shape
+    rankings = np.zeros_like(sobol_order_resample)
+    ranking_ci = np.zeros((D, 2))
+    for resample in range(num_resamples):
+	    rankings[:, resample] = np.argsort(sobol_order_resample[:, resample]).argsort()
+
+    ranking_ci = np.quantile(rankings,[(1-conf_level)/2, 0.5 + conf_level/2], axis=1)
+
+    return ranking_ci
 
 def separate_output_values(Y, D, N, calc_second_order):
     AB = np.zeros((N, D))
