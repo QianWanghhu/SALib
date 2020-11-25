@@ -104,6 +104,10 @@ def analyze(problem: Dict, X: np.ndarray, Y: np.ndarray,
     if print_to_console:
         print(Si.to_df())
 
+    #Added call of function compute_mu_star_bootstrap_ranks
+    Si['mu_star_rank_conf']= compute_mu_star_bootstrap_ranks(elementary_effects.T, 
+        trajectory_size, num_resamples, conf_level)
+
     return Si
 
 def _compute_statistical_outputs(elementary_effects: np.ndarray, num_vars: int,
@@ -457,6 +461,31 @@ def _compute_mu_star_confidence(elementary_effects: np.ndarray, num_vars: int,
 
     return mu_star_conf
 
+def compute_mu_star_bootstrap_ranks(ee_matrix, num_trajectories, num_resamples, conf_level):
+    """Calculate confidence interval for ranking of mu_star.
+    """
+	# ee_matric = ee.T
+    num_parameters = ee_matrix.shape[1]
+    resample_index = np.random.randint(
+        len(ee_matrix), size=(num_resamples, num_trajectories))
+    mu_star_resampled = np.zeros([num_resamples,num_parameters])
+    rankings = np.zeros([num_resamples,num_parameters])
+    ranking_ci = np.zeros([2,num_parameters])
+	
+	# Calculate mu_star for each parameter, for each resample
+    for parameter in range(num_parameters):
+
+	    ee_resampled = ee_matrix[resample_index,parameter]
+		# Compute average of the absolute values over each of the resamples
+	    mu_star_resampled[:,parameter] = np.average(np.abs(ee_resampled), axis=1)
+
+	# Get ranking for each resample
+    for resample in range(num_resamples):
+	    rankings[resample,:] = np.argsort(mu_star_resampled[resample,:]).argsort()
+        
+    ranking_ci = np.quantile(rankings,[(1-conf_level)/2, 0.5 + conf_level/2], axis=0)
+
+    return ranking_ci
 
 def _check_if_array_of_floats(array_x: np.ndarray):
     """ Checks if an arrays is made of floats. If not, raises an error.
