@@ -15,7 +15,7 @@ from itertools import combinations, zip_longest
 
 def analyze(problem, Y, calc_second_order=True, num_resamples=100,
             conf_level=0.95, print_to_console=False, parallel=False,
-            n_processors=None, seed=None):
+            n_processors=None, seed=None, dummy=False):
     """Perform Sobol Analysis on model outputs.
 
     Returns a dictionary with keys 'S1', 'S1_conf', 'ST', and 'ST_conf', where
@@ -95,13 +95,32 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
 
     if not parallel:
         S = create_Si_dict(D, calc_second_order)
+        first_order_resample = np.zeros((D, num_resamples))
+        total_order_resample = np.zeros((D, num_resamples))
+        if dummy == True:
+            S = create_Si_dict(D + 1, calc_second_order)
+            first_order_resample = np.zeros((D + 1, num_resamples))
+            total_order_resample = np.zeros((D + 1, num_resamples))
 
         for j in range(D):
             S['S1'][j] = first_order(A, AB[:, j], B)
-            S['S1_conf'][j] = Z * first_order(A[r], AB[r, j], B[r]).std(ddof=1)
+            first_order_resample[j, :] = first_order(A[r], AB[r, j], B[r])
+            S['S1_conf'][j] = Z * first_order_resample[j, :].std(ddof=1)
             S['ST'][j] = total_order(A, AB[:, j], B)
-            S['ST_conf'][j] = Z * total_order(A[r], AB[r, j], B[r]).std(ddof=1)
+            total_order_resample[j, :] = total_order(A[r], AB[r, j], B[r])
+            S['ST_conf'][j] = Z * total_order_resample[j, :].std(ddof=1)
 
+        if dummy == True: 
+            f0 = np.mean(A)
+            S['S1'][D] = (np.mean(A*B, axis=0) - f0**2) /  np.var(np.r_[A, B], axis=0)
+            S['ST'][D] = 1 - (np.mean(B**2, axis=0) - f0**2) /  np.var(np.r_[A, B], axis=0)
+            first_order_resample[D, :] = (np.mean(A[r]*B[r], axis=0) - np.mean(A[r], axis=0)**2) / np.var(np.r_[A[r], B[r]], axis=0)
+            S['S1_conf'][D] = Z * s1_dummy_resample.std(ddof=1)
+            total_order_resample[D, :] = (1 - (np.mean(B[r]**2, axis=0) - np.mean(A[r], axis=0)**2) /  np.var(np.r_[A[r], B[r]], axis=0))
+            S['ST_conf'][D] = Z * sT_dummy_resample.std(ddof=1)
+
+        S['main_rank_ci'] = compute_main_bootstrap_ranks(first_order_resample, conf_level)
+        S['total_rank_ci'] = compute_main_bootstrap_ranks(total_order_resample, conf_level)
         # Second order (+conf.)
         if calc_second_order:
             for j in range(D):
@@ -168,6 +187,19 @@ def create_Si_dict(D, calc_second_order):
         S['S2_conf'] = np.full((D, D), np.nan)
 
     return S
+
+def compute_main_bootstrap_ranks(sobol_order_resample, conf_level):
+    """Calculate confidence interval for ranking of mu_star.
+    """
+    D, num_resamples = sobol_order_resample.shape
+    rankings = np.zeros_like(sobol_order_resample)
+    ranking_ci = np.zeros((D, 2))
+    for resample in range(num_resamples):
+	    rankings[:, resample] = np.argsort(sobol_order_resample[:, resample]).argsort()
+
+    ranking_ci = np.quantile(rankings,[(1-conf_level)/2, 0.5 + conf_level/2], axis=1)
+
+    return ranking_ci
 
 
 def separate_output_values(Y, D, N, calc_second_order):
