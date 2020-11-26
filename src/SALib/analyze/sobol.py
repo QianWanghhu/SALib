@@ -115,9 +115,9 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
             S['S1'][D] = (np.mean(A*B, axis=0) - f0**2) /  np.var(np.r_[A, B], axis=0)
             S['ST'][D] = 1 - (np.mean(B**2, axis=0) - f0**2) /  np.var(np.r_[A, B], axis=0)
             first_order_resample[D, :] = (np.mean(A[r]*B[r], axis=0) - np.mean(A[r], axis=0)**2) / np.var(np.r_[A[r], B[r]], axis=0)
-            S['S1_conf'][D] = Z * s1_dummy_resample.std(ddof=1)
+            S['S1_conf'][D] = Z * first_order_resample[D, :].std(ddof=1)
             total_order_resample[D, :] = (1 - (np.mean(B[r]**2, axis=0) - np.mean(A[r], axis=0)**2) /  np.var(np.r_[A[r], B[r]], axis=0))
-            S['ST_conf'][D] = Z * sT_dummy_resample.std(ddof=1)
+            S['ST_conf'][D] = Z * total_order_resample[D, :].std(ddof=1)
 
         S['main_rank_ci'] = compute_main_bootstrap_ranks(first_order_resample, conf_level)
         S['total_rank_ci'] = compute_main_bootstrap_ranks(total_order_resample, conf_level)
