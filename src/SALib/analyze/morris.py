@@ -106,7 +106,7 @@ def analyze(problem: Dict, X: np.ndarray, Y: np.ndarray,
 
     #Added call of function compute_mu_star_bootstrap_ranks
     Si['mu_star_rank_conf']= compute_mu_star_bootstrap_ranks(elementary_effects.T, 
-        trajectory_size, num_resamples, conf_level)
+        num_trajectories, num_resamples, conf_level)
 
     return Si
 
