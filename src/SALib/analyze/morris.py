@@ -105,7 +105,7 @@ def analyze(problem: Dict, X: np.ndarray, Y: np.ndarray,
         print(Si.to_df())
 
     #Added call of function compute_mu_star_bootstrap_ranks
-    Si['mu_star_rank_conf']= compute_mu_star_bootstrap_ranks(elementary_effects.T, 
+    Si['mu_star_rank_conf']= _compute_mu_star_bootstrap_ranks(elementary_effects.T, 
         num_trajectories, num_resamples, conf_level)
 
     return Si
@@ -461,7 +461,7 @@ def _compute_mu_star_confidence(elementary_effects: np.ndarray, num_vars: int,
 
     return mu_star_conf
 
-def compute_mu_star_bootstrap_ranks(ee_matrix, num_trajectories, num_resamples, conf_level):
+def _compute_mu_star_bootstrap_ranks(ee_matrix, num_trajectories, num_resamples, conf_level):
     """Calculate confidence interval for ranking of mu_star.
     """
 	# ee_matric = ee.T
