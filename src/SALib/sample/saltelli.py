@@ -7,7 +7,8 @@ from ..util import (scale_samples, read_param_file,
                     compute_groups_matrix, _check_groups)
 
 
-def sample(problem, N, calc_second_order=True, seed=None, skip_values=1000):
+def sample(problem, N, calc_second_order=True, seed=None, skip_values=1000, 
+    product_dist=None, problem_adjust=None):
     """Generates model inputs using Saltelli's extension of the Sobol sequence.
 
     Returns a NumPy matrix containing the model inputs using Saltelli's sampling
@@ -61,6 +62,33 @@ def sample(problem, N, calc_second_order=True, seed=None, skip_values=1000):
 
     # Create base sequence - could be any type of sampling
     base_sequence = sobol_sequence.sample(N + skip_values, 2 * D)
+
+    # If conducting re-parameterization to address MPR
+    if isinstance(product_dist, np.ndarray):
+        base_sequence = np.vstack([base_sequence[:, 0:D], base_sequence[:, D:]])
+        column_delete = np.array([])
+        for index_list in product_dist:
+            second_part = np.array([jj+D for jj in index_list])
+            base_sequence[:, index_list[0]] = np.prod(base_sequence[:, index_list], axis=1)
+            base_sequence[:, second_part[0]] = np.prod(base_sequence[:, second_part], axis=1)
+            column_delete = np.append(column_delete, index_list[1:])
+            column_delete = np.append(column_delete, second_part[1:])
+
+        base_sequence = np.delete(base_sequence, column_delete, axis=1)
+        base_sequence = np.hstack([base_sequence[:N + skip_values,:], base_sequence[N + skip_values:, :]])
+        
+        # re-define problem using the new problem (problem_adjust)
+        problem = problem_adjust
+        D = problem['num_vars']
+        groups = problem.get('groups')
+
+        if not groups:
+            Dg = problem['num_vars']
+        else:
+            Dg = len(set(groups))
+            G, group_names = compute_groups_matrix(groups)    
+    
+    # END re-parameterization
 
     if calc_second_order:
         saltelli_sequence = np.zeros([(2 * Dg + 2) * N, D])
