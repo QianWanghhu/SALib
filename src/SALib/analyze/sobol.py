@@ -102,7 +102,7 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
             first_order_resample = np.zeros((D + 1, num_resamples))
             total_order_resample = np.zeros((D + 1, num_resamples))
 
-        for j in range(D):
+        for j in range(D + 1):
             S['S1'][j] = first_order(A, AB[:, j], B)
             first_order_resample[j, :] = first_order(A[r], AB[r, j], B[r])
             S['S1_conf'][j] = Z * first_order_resample[j, :].std(ddof=1)
@@ -110,14 +110,15 @@ def analyze(problem, Y, calc_second_order=True, num_resamples=100,
             total_order_resample[j, :] = total_order(A[r], AB[r, j], B[r])
             S['ST_conf'][j] = Z * total_order_resample[j, :].std(ddof=1)
 
-        if dummy == True: 
-            f0 = np.mean(A)
-            S['S1'][D] = (np.mean(A*B, axis=0) - f0**2) /  np.var(np.r_[A, B], axis=0)
-            S['ST'][D] = 1 - (np.mean(B**2, axis=0) - f0**2) /  np.var(np.r_[A, B], axis=0)
-            first_order_resample[D, :] = (np.mean(A[r]*B[r], axis=0) - np.mean(A[r], axis=0)**2) / np.var(np.r_[A[r], B[r]], axis=0)
-            S['S1_conf'][D] = Z * first_order_resample[D, :].std(ddof=1)
-            total_order_resample[D, :] = (1 - (np.mean(B[r]**2, axis=0) - np.mean(A[r], axis=0)**2) /  np.var(np.r_[A[r], B[r]], axis=0))
-            S['ST_conf'][D] = Z * total_order_resample[D, :].std(ddof=1)
+        # if dummy == True: 
+        #     f0 = np.mean(A)
+        #     vary = np.mean(A ** 2) - f0 ** 2
+        #     S['S1'][D] = (np.mean(A*B, axis=0) - f0**2) /  vary
+        #     S['ST'][D] = 1 - (np.mean(B**2, axis=0) - f0**2) /  vary
+        #     first_order_resample[D, :] = (np.mean(A[r]*B[r], axis=0) - np.mean(A[r], axis=0)**2) / (np.mean(A[r] ** 2, axis=0) - np.mean(A[r], axis=0) ** 2)
+        #     S['S1_conf'][D] = Z * first_order_resample[D, :].std(ddof=1)
+        #     total_order_resample[D, :] = (1 - (np.mean(B[r]**2, axis=0) - np.mean(A[r], axis=0)**2) / (np.mean(A[r] ** 2, axis=0) - np.mean(A[r], axis=0) ** 2))
+        #     S['ST_conf'][D] = Z * total_order_resample[D, :].std(ddof=1)
 
         S['main_rank_ci'] = compute_main_bootstrap_ranks(first_order_resample, conf_level)
         S['total_rank_ci'] = compute_main_bootstrap_ranks(total_order_resample, conf_level)
