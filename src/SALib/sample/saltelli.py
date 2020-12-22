@@ -68,13 +68,15 @@ def sample(problem, N, calc_second_order=True, seed=None, skip_values=1000,
         base_sequence = np.vstack([base_sequence[:, 0:D], base_sequence[:, D:]])
         column_delete = np.array([])
         for index_list in product_dist:
-            second_part = np.array([jj+D for jj in index_list])
+            # import pdb; pdb.set_trace()
+            # second_part = np.array([jj+D for jj in index_list])
             base_sequence[:, index_list[0]] = np.prod(base_sequence[:, index_list], axis=1)
-            base_sequence[:, second_part[0]] = np.prod(base_sequence[:, second_part], axis=1)
+            # base_sequence[:, second_part[0]] = np.prod(base_sequence[:, second_part], axis=1)
             column_delete = np.append(column_delete, index_list[1:])
-            column_delete = np.append(column_delete, second_part[1:])
+            # column_delete = np.append(column_delete, second_part[1:])
 
-        base_sequence = np.delete(base_sequence, column_delete, axis=1)
+        # import pdb; pdb.set_trace()
+        base_sequence = np.delete(base_sequence, column_delete.astype('int'), axis=1)
         base_sequence = np.hstack([base_sequence[:N + skip_values,:], base_sequence[N + skip_values:, :]])
         
         # re-define problem using the new problem (problem_adjust)
