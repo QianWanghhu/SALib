@@ -82,7 +82,7 @@ def sample(problem, N, calc_second_order=True, skip_values=1000, deleted=True,
         if not deleted:
             base_sequence[:, column_delete.astype(int)] = [1]
         else:
-            base_sequence = np.delete(base_sequence, column_delete, axis=1)
+            base_sequence = np.delete(base_sequence, column_delete.astype('int'), axis=1)
     # re-define problem using the new problem (problem_adjust)
             problem = problem_adjust
             D = problem['num_vars']
